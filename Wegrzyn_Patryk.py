@@ -63,7 +63,7 @@ class Simplifier(object):
                     return essential_set
         return implicants
 
-    # Creates from the prime implicants:
+    # Creates and string expression from the prime implicants:
     def generate_minimized_exp(self, implicants):
         main_result = ""
         iterations = 0
@@ -80,7 +80,7 @@ class Simplifier(object):
             else:
                 main_result += "(" + temp_result[:-1] + ")|"
             iterations += 1
-        if iterations == 1:
+        if iterations == 1 and len(main_result)-1 >= 3:
             return main_result[1:-2]
         else:
             return main_result[:-1]
@@ -246,17 +246,20 @@ class Simplifier(object):
             after_red = self.__current_raw_exp
 
         # After the reduction of redundant terms, lets check if the expression can
-        # be further reduced to a xor or implication form
+        # be further reduced to a xor, implication or disjunction form
         after_red_exp = Expression(after_red)
         variables_after_red = "".join(list(after_red_exp.get_variables()))
         minterms_after_red = self.get_minterms(after_red_exp)
         xor_minterms = self.get_minterms(Expression("a^b"))
         impl_minterms = self.get_minterms(Expression("a>b"))
+        disj_minterms = self.get_minterms(Expression("a/b"))
         for a,b in combinations(variables_after_red, 2):
             if(set(minterms_after_red) == set(xor_minterms)):
                 return a + "^" + b
             if(set(minterms_after_red) == set(impl_minterms)):
                 return a + ">" + b
+            if(set(minterms_after_red) == set(disj_minterms)):
+                return a + "/" + b
         return after_red
 
 
