@@ -66,7 +66,7 @@ class Simplifier(object):
     # Creates from the prime implicants:
     def generate_minimized_exp(self, implicants):
         main_result = ""
-        main_result_without_brackets = ""
+        iterations = 0
         variables = "".join(list(self.__current_exp.get_variables()))
         for imp in implicants:
             temp_result = ""
@@ -75,9 +75,15 @@ class Simplifier(object):
                     temp_result += ("~" + j + "&")
                 elif i == "1":
                     temp_result += (j + "&")
-            main_result += "(" + temp_result[:-1] + ")|"
-            main_result_without_brackets += temp_result[:-1] + "|"
-        return (main_result[:-1], main_result_without_brackets[:-1])
+            if len(temp_result) in (2,3):
+                main_result += temp_result[:-1] + "|"
+            else:
+                main_result += "(" + temp_result[:-1] + ")|"
+            iterations += 1
+        if iterations == 1:
+            return main_result[1:-2]
+        else:
+            return main_result[:-1]
 
     # Checks if it is possible to merge two implicants:
     def check_merge(self, implicant_a, implicant_b):
@@ -222,16 +228,6 @@ class Simplifier(object):
         # then the expression is always true
         elif len(minterms) == 2**len(variables):
             return "T"
-
-        # We might as well check if the found minterms are the same as xor's or
-        # implications's because that would save us a lot of time
-        for a,b in combinations(variables, 2):
-            xor_minterms = self.get_minterms(Expression(a + '^' + b))
-            impl_minterms = self.get_minterms(Expression(a + '>' + b))
-            if(set(minterms) == set(xor_minterms)):
-                return a + "^" + b
-            if(set(minterms) == set(impl_minterms)):
-                return a + ">" + b
         
         # Get the prime implicants based on the found minterms
         prime_implicants = self.get_prime_implicants(set(minterms))
@@ -240,13 +236,28 @@ class Simplifier(object):
         essential_prime_implicants = \
             self.get_essential_prime_implicants(prime_implicants, minterms)
 
-        # Return the pretty-printed result only it's actually shorter than
-        # then original expression
-        minimized, wo_brackets = self.generate_minimized_exp(essential_prime_implicants)
-        if len(self.__current_raw_exp) > len(wo_brackets):
-            return minimized
+        # Generate the expression from the implicant form
+        minimized = self.generate_minimized_exp(essential_prime_implicants)
+
+        # Chekc if the reduction was effective
+        if len(self.__current_raw_exp) > len(minimized):
+            after_red = minimized
         else:
-            return self.__current_raw_exp
+            after_red = self.__current_raw_exp
+
+        # After the reduction of redundant terms, lets check if the expression can
+        # be further reduced to a xor or implication form
+        after_red_exp = Expression(after_red)
+        variables_after_red = "".join(list(after_red_exp.get_variables()))
+        minterms_after_red = self.get_minterms(after_red_exp)
+        xor_minterms = self.get_minterms(Expression("a^b"))
+        impl_minterms = self.get_minterms(Expression("a>b"))
+        for a,b in combinations(variables_after_red, 2):
+            if(set(minterms_after_red) == set(xor_minterms)):
+                return a + "^" + b
+            if(set(minterms_after_red) == set(impl_minterms)):
+                return a + ">" + b
+        return after_red
 
 
 # Represents a valid in term of logical rules (or not) expression
